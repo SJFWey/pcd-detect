@@ -54,7 +54,7 @@ boxes:
   method: "obb"
   z_percentile: 5.0
   min_box_volume: 0.2
-  max_box_volume: 80.0
+  max_box_volume: 10.0
 
 evaluation:
   official: false

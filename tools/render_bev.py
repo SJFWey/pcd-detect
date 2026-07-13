@@ -37,6 +37,30 @@ NOISE = "#d0d0d0"
 BOX = "#d62728"
 
 
+def _display_bounds(config: dict) -> ROIBounds:
+    """Resolve the XY window used for the rendered qualitative view."""
+    roi_cfg = config.get("preprocess", {}).get("roi", {})
+    display_cfg = config.get("visualization", {}).get("display_roi") or roi_cfg
+    return ROIBounds(
+        x_min=float(display_cfg.get("x_min", roi_cfg.get("x_min", 0.0))),
+        x_max=float(display_cfg.get("x_max", roi_cfg.get("x_max", 70.0))),
+        y_min=float(display_cfg.get("y_min", roi_cfg.get("y_min", -40.0))),
+        y_max=float(display_cfg.get("y_max", roi_cfg.get("y_max", 40.0))),
+        z_min=float(roi_cfg.get("z_min", -3.0)),
+        z_max=float(roi_cfg.get("z_max", 3.0)),
+    )
+
+
+def _boxes_in_display_roi(boxes, bounds: ROIBounds):
+    """Keep boxes whose centre is inside the rendered view."""
+    return [
+        box
+        for box in boxes
+        if bounds.x_min <= box.center[0] <= bounds.x_max
+        and bounds.y_min <= box.center[1] <= bounds.y_max
+    ]
+
+
 def _detection_overlay_data(config: dict, dataset: KITTIDataset, frame_idx: int, boxes) -> tuple[list[BoundingBox3D], list[BoundingBox3D], set[int], set[int]]:
     """Build a label-backed overlay using the same target and IoU rules as eval."""
     frame = dataset.get_frame(frame_idx)
@@ -78,6 +102,10 @@ def _detection_overlay_data(config: dict, dataset: KITTIDataset, frame_idx: int,
         )
         if _ids_match_target(semantic_id, target_ids):
             predictions.append(BoundingBox3D.from_obb_params(box, semantic_id=semantic_id))
+
+    display_bounds = _display_bounds(config)
+    predictions = _boxes_in_display_roi(predictions, display_bounds)
+    ground_truth = _boxes_in_display_roi(ground_truth, display_bounds)
 
     threshold = float(config.get("evaluation", {}).get("iou_threshold", 0.5))
     matches, _, _ = InstanceMatcher(
@@ -241,10 +269,23 @@ def _render_bev(config: dict, frame_idx: int, mode: str, output_path: Path) -> N
         precision = tp / (tp + fp) if tp + fp else 0.0
         recall = tp / (tp + fn) if tp + fn else 0.0
         f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+        display_bounds = _display_bounds(config)
         draw_metrics_text(
-            axes[2], tp, fp, fn, precision, recall, f1, frame_idx
+            axes[2],
+            tp,
+            fp,
+            fn,
+            precision,
+            recall,
+            f1,
+            frame_idx,
+            distance_str=(
+                f"visible ROI: x={display_bounds.x_min:.0f}-{display_bounds.x_max:.0f}m"
+            ),
         )
-        _style_axis(axes[2], config, points, "3. Label-backed detection overlay")
+        _style_axis(
+            axes[2], config, points, "3. GT-matched overlay (visible ROI)"
+        )
         roi_cfg = config.get("preprocess", {}).get("roi", {})
         display_roi = config.get("visualization", {}).get("display_roi") or roi_cfg
         draw_distance_scale(

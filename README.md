@@ -104,17 +104,17 @@ Subset metrics, generated from `outputs/kitti08_subset/reports/det_metrics.json`
 
 | Sequence / frames | Targets | IoU | Precision | Recall | F1 | Mean IoU |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
-| 08 / 0-499 | car, person | BEV >= 0.5 | 0.0379 | 0.2907 | 0.0670 | 0.7223 |
+| 08 / 0-499 | car, person | BEV >= 0.5 | 0.0422 | 0.2793 | 0.0734 | 0.7237 |
 
 Distance-stratified recall:
 
 | Range | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: |
-| 0-10m | 0.269 | 0.810 | 0.404 |
-| 10-20m | 0.067 | 0.420 | 0.116 |
-| 20-30m | 0.014 | 0.117 | 0.025 |
-| 30-40m | 0.005 | 0.055 | 0.009 |
-| 40-50m | 0.005 | 0.040 | 0.009 |
+| 0-10m | 0.306 | 0.772 | 0.438 |
+| 10-20m | 0.081 | 0.405 | 0.135 |
+| 20-30m | 0.016 | 0.117 | 0.029 |
+| 30-40m | 0.005 | 0.049 | 0.009 |
+| 40-50m | 0.006 | 0.040 | 0.010 |
 
 These numbers should be read as proposal-baseline results, not as detector
 model accuracy. The pipeline creates many geometric proposals and uses simple
@@ -124,10 +124,10 @@ reasonable, which is reflected in the matched-box mean IoU.
 
 The qualitative configuration uses the exact same processing parameters as the
 subset run. Its `visualization.display_roi` only crops the rendered view for
-readability. Panel 3 is label-backed: predictions are matched to real
-SemanticKITTI instances with the same class-aware BEV-IoU rule as evaluation;
-green, red, and dashed orange boxes are TP, FP, and FN respectively. The images
-are diagnostics, not a replacement for the subset metrics above.
+readability. Panel 3 is label-backed: it evaluates only boxes centred in that
+visible ROI, so its counts match the boxes on screen. Predictions are matched to
+real SemanticKITTI instances with the same class-aware BEV-IoU rule as evaluation;
+green, red, and dashed orange boxes are TP, FP, and FN respectively.
 
 ![KITTI BEV pipeline frame 30](docs/assets/kitti08-frame-000030-pipeline.png)
 

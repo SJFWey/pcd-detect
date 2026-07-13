@@ -12,38 +12,38 @@ This result is generated with `examples/kitti08_subset.yaml`.
 - Prediction class source: box-size heuristic when no class metadata exists
 - Ground RANSAC seed: `0` (fixed for repeatable runs)
 - Output: `outputs/kitti08_subset/reports/det_metrics.json`
+- Selection note: `max_box_volume: 10.0` won a controlled one-factor comparison on this same subset; this is not a held-out benchmark.
 
 ## Overall Metrics
 
 | Metric | Value |
 | --- | ---: |
 | Frames | 500 |
-| Predictions | 14872 |
+| Predictions | 12812 |
 | Ground-truth boxes | 1937 |
-| True positives | 563 |
-| False positives | 14309 |
-| False negatives | 1374 |
-| Precision | 0.0379 |
-| Recall | 0.2907 |
-| F1 | 0.0670 |
-| Mean IoU of matched boxes | 0.7223 |
+| True positives | 541 |
+| False positives | 12271 |
+| False negatives | 1396 |
+| Precision | 0.0422 |
+| Recall | 0.2793 |
+| F1 | 0.0734 |
+| Mean IoU of matched boxes | 0.7237 |
 
 ## Distance Metrics
 
 | Range | Predictions | GT | TP | FP | FN | Precision | Recall | F1 | Mean IoU |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0-10m | 870 | 289 | 234 | 636 | 55 | 0.269 | 0.810 | 0.404 | 0.767 |
-| 10-20m | 3626 | 578 | 243 | 3383 | 335 | 0.067 | 0.420 | 0.116 | 0.706 |
-| 20-30m | 4219 | 495 | 58 | 4161 | 437 | 0.014 | 0.117 | 0.025 | 0.619 |
-| 30-40m | 3718 | 325 | 18 | 3700 | 307 | 0.005 | 0.055 | 0.009 | 0.657 |
-| 40-50m | 1901 | 250 | 10 | 1891 | 240 | 0.005 | 0.040 | 0.009 | 0.784 |
+| 0-10m | 729 | 289 | 223 | 506 | 66 | 0.306 | 0.772 | 0.438 | 0.771 |
+| 10-20m | 2879 | 578 | 234 | 2645 | 344 | 0.081 | 0.405 | 0.135 | 0.706 |
+| 20-30m | 3538 | 495 | 58 | 3480 | 437 | 0.016 | 0.117 | 0.029 | 0.619 |
+| 30-40m | 3309 | 325 | 16 | 3293 | 309 | 0.005 | 0.049 | 0.009 | 0.660 |
+| 40-50m | 1817 | 250 | 10 | 1807 | 240 | 0.006 | 0.040 | 0.010 | 0.784 |
 
 ## Visual Checks
-
 The images below use the same processing configuration as the measured subset.
-`visualization.display_roi` crops only the rendered view. Panel 3 is derived
-from real SemanticKITTI labels and the same class-aware BEV-IoU matching rule
-as the table above; TP, FP, and FN are shown explicitly.
+`visualization.display_roi` crops only the rendered view, and panel 3 evaluates
+only boxes centred within that visible ROI. It uses real SemanticKITTI labels and
+the same class-aware BEV-IoU matching rule as the table above.
 
 ![KITTI BEV pipeline frame 30](../assets/kitti08-frame-000030-pipeline.png)
 
