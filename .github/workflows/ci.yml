@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: uv sync --group dev --extra viz
+      - name: Run tests
+        run: uv run pytest
+      - name: Validate mini fixture
+        run: uv run python tools/check_dataset.py --dataset examples/mini_semkitti --sequence 00 --sample 2
+      - name: Run mini detection
+        run: uv run python -m src.main run --config examples/mini_config.yaml --frames 0-2
+      - name: Run mini evaluation and validate detection metrics
+        run: |
+          uv run pcd-detect eval --config examples/mini_config.yaml
+          uv run python -c "import json; from pathlib import Path; json.loads(Path('outputs/mini/reports/det_metrics.json').read_text(encoding='utf-8'))"
+      - name: Render mini visualization
+        run: uv run python -m src.main viz --config examples/mini_config.yaml --output /tmp/pcd-detect-mini.png

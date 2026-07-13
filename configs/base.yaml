@@ -1,0 +1,57 @@
+# Base Configuration for pcd-detect
+# Shared settings across all tasks
+#
+# Local overrides: Create config.local.yaml next to this file
+# to override any setting.
+
+# ============================================================================
+# Dataset Configuration
+# ============================================================================
+dataset:
+  # Path to KITTI/SemanticKITTI dataset root
+  # Default: expects a symlink 'data' in the project root pointing to the dataset
+  # Override this in config.local.yaml if you prefer absolute paths
+  root: "./data"
+  sequence: "00"
+
+# ============================================================================
+# Preprocessing Configuration
+# ============================================================================
+preprocess:
+  # ROI Crop in KITTI Velodyne coordinates:
+  # x = forward, y = left, z = up (meters)
+  roi:
+    x_min: 0.0     # forward min; avoid keeping objects behind the sensor
+    x_max: 70.0    # forward max; keep far-range KITTI targets
+    y_min: -40.0   # right max
+    y_max: 40.0    # left max
+    z_min: -3.0    # below sensor/ground
+    z_max: 3.0     # above sensor/ground
+
+  # Voxel downsampling
+  voxel:
+    enabled: true
+    mode: "fixed"  # "fixed" or "distance_adaptive"
+    voxel_size: 0.1  # meters, for fixed mode
+    # Distance-adaptive settings (if mode == "distance_adaptive")
+    distance_bins: [0, 20, 40, 60]
+    bin_voxel_sizes: [0.05, 0.1, 0.15]
+
+# ============================================================================
+# Output Configuration
+# ============================================================================
+output:
+  root: "outputs"
+  boxes_dir: "boxes"
+  predictions_dir: "predictions"
+  reports_dir: "reports"
+  videos_dir: "videos"
+  boxes_format: "jsonl"  # "jsonl" or "parquet"
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  timing: true   # Enable per-module timing
+  save_logs: true

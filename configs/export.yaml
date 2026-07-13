@@ -1,0 +1,36 @@
+# Export Configuration
+# Settings for exporting results (video, reports, predictions)
+
+# ============================================================================
+# Export Settings
+# ============================================================================
+export:
+  # Export type: video, report, predictions
+  type: "video"
+
+  # For predictions export
+  from_boxes: false  # Generate predictions from detection boxes (vs GT copy)
+
+  # Frame range for export (null = use all available)
+  start: 0
+  end: null
+  step: 1
+
+# ============================================================================
+# Video Export Settings
+# ============================================================================
+video:
+  fps: 15
+  width: 1280
+  height: 720
+
+  # For debug video (single frame rotating view)
+  debug:
+    frame: 500          # Frame to visualize
+    num_views: 4        # Number of camera angles
+    frames_per_view: 45 # Frames per angle (duration)
+
+  # For sequence video
+  sequence:
+    step: 3             # Frame step (skip frames for speed)
+    max_frames: 500     # Maximum frames to include

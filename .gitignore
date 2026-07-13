@@ -1,0 +1,27 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# IDE settings
+.vscode/
+.codex/
+
+# Virtual environments
+.venv
+
+# third-party tools
+third_party/
+
+# Outputs
+outputs/
+data/
+data
+config.local.yaml
+configs/config.local.yaml
+
+# Personal references/notes (not for public repo)
+references/

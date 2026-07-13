@@ -1,0 +1,64 @@
+# Detection Pipeline Configuration
+# Ground segmentation, proposal generation, filtering, and bounding boxes
+
+# ============================================================================
+# Frame Range for Processing
+# ============================================================================
+frames:
+  start: 0
+  end: null      # null = process all frames
+  step: 1        # process every Nth frame
+
+# ============================================================================
+# Ground Segmentation Configuration (RANSAC)
+# ============================================================================
+ground:
+  distance_threshold: 0.2  # Max distance from plane to be considered inlier
+  ransac_n: 3              # Number of points to sample for plane estimation
+  num_iterations: 1000     # RANSAC iterations
+  min_normal_z: 0.9        # Minimum |z| component of the normalized plane normal (0-1)
+  random_seed: 0          # fixed RANSAC seed for repeatable runs
+  # Pre-filtering: only consider points in low height band
+  z_min: -2.5
+  z_max: -0.5
+
+# ============================================================================
+# Proposal Generation Configuration
+# ============================================================================
+proposals:
+  method: "dbscan"  # "bev_cc" (BEV connected components) or "dbscan"
+
+  # BEV Connected Components settings
+  bev_cc:
+    resolution: 0.2    # meters per cell
+    min_height: 0.3    # minimum height to be considered occupied
+    min_points: 10     # minimum points in a cluster
+
+  # DBSCAN settings
+  dbscan:
+    mode: "distance_adaptive"  # "fixed" or "distance_adaptive"
+    eps: 0.5                   # meters, for fixed mode
+    min_points: 10
+    # Distance-adaptive settings for far-range detection
+    distance_bins: [0, 20, 40, 60]
+    bin_eps: [0.4, 0.6, 1.0]
+    bin_min_points: [10, 6, 4]
+
+# ============================================================================
+# Cluster Filtering Configuration
+# ============================================================================
+filtering:
+  min_points: 20        # minimum points per cluster
+  max_points: 50000     # maximum points per cluster
+  min_height: 0.3       # meters
+  max_height: 4.0       # meters
+  percentile_clip: 2.0  # percentile for outlier removal (0-50)
+
+# ============================================================================
+# Bounding Box Fitting Configuration
+# ============================================================================
+boxes:
+  method: "obb"  # only "obb" is supported; unsupported values fail fast
+  z_percentile: 5.0  # percentile for robust z boundary estimation
+  min_box_volume: 0.1   # cubic meters
+  max_box_volume: 1000  # cubic meters

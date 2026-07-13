@@ -1,0 +1,32 @@
+# Visualization Configuration
+# Settings for interactive and debug visualization
+
+# ============================================================================
+# Visualization Mode
+# ============================================================================
+visualization:
+  # Mode: debug, points, ground, clusters, boxes
+  mode: "boxes"
+
+  # Frame to visualize (for single-frame viz)
+  frame: 50
+
+  # Enable visualization during pipeline run
+  enabled: true
+
+  # Display settings
+  point_size: 2.0
+  show_ground: false
+  show_boxes: true
+  colormap: "semantic"  # "semantic", "height", "intensity"
+
+  # Performance settings
+  max_points: 0  # 0 = no limit
+
+# ============================================================================
+# Camera Settings (for rendering)
+# ============================================================================
+camera:
+  elevation: 60   # degrees
+  azimuth: -90    # degrees
+  distance: 80    # meters from origin

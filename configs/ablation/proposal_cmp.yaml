@@ -1,0 +1,127 @@
+# Ablation Study: Proposal Method Comparison
+# Compares BEV Connected Components vs DBSCAN clustering
+
+# This configuration runs both methods on the same data
+# to enable fair comparison of detection metrics and performance.
+
+# ============================================================================
+# Ablation Experiment Settings
+# ============================================================================
+ablation:
+  name: "proposal_method_comparison"
+  description: "Compare BEV-CC vs DBSCAN for proposal generation"
+
+  # Methods to compare
+  methods:
+    - name: "bev_cc"
+      description: "BEV Connected Components (main method)"
+    - name: "dbscan_fixed"
+      description: "DBSCAN with fixed eps"
+    - name: "dbscan_adaptive"
+      description: "DBSCAN with distance-adaptive eps"
+
+  # Metrics to collect
+  metrics:
+    - precision
+    - recall
+    - f1
+    - mean_iou
+    - processing_time_ms
+    - num_proposals
+
+  # Output settings
+  output:
+    report_path: "outputs/reports/ablation_proposals.md"
+    results_path: "outputs/reports/ablation_proposals.json"
+    figures_dir: "outputs/reports/figures"
+
+# ============================================================================
+# Dataset Configuration (shared across all methods)
+# ============================================================================
+dataset:
+  root: "./data"
+  sequence: "00"
+  # Use subset of frames for faster ablation
+  frame_range:
+    start: 0
+    end: 500
+    step: 5  # Every 5th frame
+
+# ============================================================================
+# Preprocessing Configuration (shared)
+# ============================================================================
+preprocess:
+  roi:
+    x_min: -40.0
+    x_max: 40.0
+    y_min: -40.0
+    y_max: 70.0
+    z_min: -3.0
+    z_max: 3.0
+
+  voxel:
+    enabled: true
+    mode: "fixed"
+    voxel_size: 0.1
+
+# ============================================================================
+# Ground Segmentation (shared)
+# ============================================================================
+ground:
+  distance_threshold: 0.2
+  ransac_n: 3
+  num_iterations: 1000
+  z_min: -2.5
+  z_max: -0.5
+
+# ============================================================================
+# Method 1: BEV Connected Components
+# ============================================================================
+bev_cc:
+  resolution: 0.2
+  min_height: 0.3
+  min_points: 10
+
+# ============================================================================
+# Method 2: DBSCAN with Fixed eps
+# ============================================================================
+dbscan_fixed:
+  mode: "fixed"
+  eps: 0.5
+  min_points: 10
+
+# ============================================================================
+# Method 3: DBSCAN with Distance-Adaptive eps
+# ============================================================================
+dbscan_adaptive:
+  mode: "distance_adaptive"
+  distance_bins: [0, 20, 40, 60]
+  bin_eps: [0.3, 0.5, 0.8]
+  min_points: 10
+
+# ============================================================================
+# Filtering Configuration (shared)
+# ============================================================================
+filtering:
+  min_points: 20
+  max_points: 50000
+  min_height: 0.3
+  max_height: 4.0
+  percentile_clip: 2.0
+
+# ============================================================================
+# Bounding Box Fitting (shared)
+# ============================================================================
+boxes:
+  method: "obb"
+  z_percentile: 5.0
+  min_box_volume: 0.1
+  max_box_volume: 1000
+
+# ============================================================================
+# Evaluation Settings
+# ============================================================================
+evaluation:
+  iou_threshold: 0.5
+  use_3d_iou: false  # Use BEV IoU for comparison
+  distance_bins: [0, 10, 20, 30, 40, 50]

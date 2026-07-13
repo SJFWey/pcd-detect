@@ -1,0 +1,94 @@
+dataset:
+  root: "examples/mini_semkitti"
+  sequence: "00"
+
+frames:
+  start: 0
+  end: 2
+  step: 1
+
+preprocess:
+  roi:
+    x_min: 0.0
+    x_max: 45.0
+    y_min: -15.0
+    y_max: 15.0
+    z_min: -2.5
+    z_max: 2.5
+  voxel:
+    enabled: false
+    mode: "fixed"
+    voxel_size: 0.1
+
+ground:
+  distance_threshold: 0.08
+  ransac_n: 3
+  num_iterations: 200
+  z_min: -1.75
+  z_max: -1.35
+
+proposals:
+  method: "dbscan"
+  dbscan:
+    mode: "fixed"
+    eps: 0.9
+    min_points: 8
+  bev_cc:
+    resolution: 0.2
+    min_height: 0.3
+    min_points: 10
+
+filtering:
+  min_points: 20
+  max_points: 5000
+  min_height: 0.3
+  max_height: 3.0
+  percentile_clip: 2.0
+
+boxes:
+  method: "obb"
+  z_percentile: 5.0
+  min_box_volume: 0.05
+  max_box_volume: 200.0
+
+output:
+  root: "outputs/mini"
+  boxes_dir: "boxes"
+  predictions_dir: "predictions"
+  reports_dir: "reports"
+  videos_dir: "videos"
+  boxes_format: "jsonl"
+
+visualization:
+  mode: "boxes"
+  frame: 0
+  enabled: true
+  point_size: 4.0
+  show_ground: false
+  show_boxes: true
+  colormap: "height"
+  max_points: 0
+
+camera:
+  elevation: 32
+  azimuth: -64
+  distance: 45
+
+export:
+  type: "video"
+  from_boxes: false
+  start: 0
+  end: 2
+  step: 1
+
+video:
+  fps: 10
+  width: 1280
+  height: 720
+  debug:
+    frame: 0
+    num_views: 4
+    frames_per_view: 20
+  sequence:
+    step: 1
+    max_frames: 2

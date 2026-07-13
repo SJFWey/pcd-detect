@@ -1,0 +1,45 @@
+[project]
+name = "pcd-detect"
+version = "0.1.0"
+description = "3D Point Cloud Detection on KITTI Dataset"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10, <3.13"
+dependencies = [
+    "numpy>=1.26",
+    "open3d>=0.18",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+    "scipy>=1.11",
+    "imageio>=2.37.2",
+]
+
+[project.scripts]
+pcd-detect = "src.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+viz = [
+    "vispy>=0.14",
+    "matplotlib>=3.8",
+    "imageio>=2.33",
+    "imageio-ffmpeg>=0.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
