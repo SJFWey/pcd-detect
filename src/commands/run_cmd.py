@@ -9,6 +9,7 @@ import typer
 
 from ..boxes.obb import fit_obbs_to_clusters
 from ..datasets.kitti_odometry import KITTIDataset
+from ..eval.perf_report import generate_performance_report
 from ..io.export_boxes import BoxesExporter, create_frame_boxes
 from ..preprocess.ground import segment_ground
 from ..preprocess.roi import ROIBounds, crop_points
@@ -145,6 +146,7 @@ def _run_detection_pipeline(cfg: dict[str, Any], frames_str: str | None) -> None
     )
 
     total_boxes = 0
+    total_input_points = 0
 
     for frame_idx in frame_range:
         # Load frame
@@ -153,6 +155,7 @@ def _run_detection_pipeline(cfg: dict[str, Any], frames_str: str | None) -> None
             points = frame.points.copy()
 
         input_points = points.shape[0]
+        total_input_points += input_points
 
         # ROI crop
         with timer_manager.measure("roi_crop", frame_idx, input_points) as t:
@@ -257,6 +260,19 @@ def _run_detection_pipeline(cfg: dict[str, Any], frames_str: str | None) -> None
     # Print timing summary
     typer.echo()
     typer.echo(timer_manager.summary())
+
+    performance_cfg = cfg.get("performance", {})
+    if performance_cfg.get("save_report", False):
+        reports_dir = cfg["output"].get("reports_dir", "reports")
+        report_dir = output_root / reports_dir
+        report = generate_performance_report(
+            timer_manager,
+            total_points=total_input_points,
+        )
+        report.save(report_dir / "perf.json")
+        report.save_markdown(report_dir / "perf.md")
+        typer.echo(f"Performance report: {report_dir / 'perf.json'}")
+        typer.echo(f"Performance summary: {report_dir / 'perf.md'}")
 
 
 def run_command(

@@ -26,6 +26,6 @@ jobs:
       - name: Run mini evaluation and validate detection metrics
         run: |
           uv run pcd-detect eval --config examples/mini_config.yaml
-          uv run python -c "import json; from pathlib import Path; json.loads(Path('outputs/mini/reports/det_metrics.json').read_text(encoding='utf-8'))"
+          uv run python -c "import json; from pathlib import Path; [json.loads(Path(path).read_text(encoding='utf-8')) for path in ('outputs/mini/reports/det_metrics.json', 'outputs/mini/reports/perf.json')]"
       - name: Render mini visualization
         run: uv run python -m src.main viz --config examples/mini_config.yaml --output /tmp/pcd-detect-mini.png

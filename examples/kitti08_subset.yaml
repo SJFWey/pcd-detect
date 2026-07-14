@@ -35,9 +35,6 @@ proposals:
     mode: "fixed"
     eps: 0.55
     min_points: 12
-    distance_bins: [0, 20, 40, 60]
-    bin_eps: [0.4, 0.6, 1.0]
-    bin_min_points: [10, 6, 4]
   bev_cc:
     resolution: 0.2
     min_height: 0.3
@@ -59,7 +56,6 @@ boxes:
 evaluation:
   official: false
   detection: true
-  perf: true
   split: "valid"
   iou_threshold: 0.5
   use_3d_iou: false
@@ -68,6 +64,9 @@ evaluation:
     car: true
     person: true
     bicyclist: false
+
+performance:
+  save_report: true
 
 output:
   root: "outputs/kitti08_subset"

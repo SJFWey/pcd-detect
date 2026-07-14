@@ -8,8 +8,6 @@ evaluation:
   # Evaluation type toggles
   official: false     # Run official SemanticKITTI semantic IoU
   detection: true     # Run detection metrics (Precision, Recall, F1)
-  perf: true         # Generate performance report from timing
-
   # Paths (relative to output.root or absolute)
   predictions_path: null  # null = use output.predictions_dir
 
@@ -23,6 +21,7 @@ evaluation:
   # predictions to GT with the same semantic class.
 
   # Distance stratification
+  # A final overflow bin is added automatically.
   distance_bins: [0, 10, 20, 30, 40, 50]
 
   # Target classes for evaluation

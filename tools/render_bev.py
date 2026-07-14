@@ -20,7 +20,11 @@ from src.commands.eval_cmd import (
     _semantic_id_from_box_record,
 )
 from src.datasets.semkitti_labels import SemanticKITTILabels
-from src.eval.detection_eval import BoundingBox3D, InstanceMatcher, extract_gt_instances
+from src.eval.detection_eval import (
+    BoundingBox3D,
+    InstanceMatcher,
+    extract_reference_instances,
+)
 from src.io.boxes_to_labels import BoxLabelMapping
 from src.preprocess.roi import ROIBounds, apply_mask, roi_mask
 from src.commands.viz_cmd import _process_single_frame_for_viz
@@ -88,7 +92,7 @@ def _detection_overlay_data(config: dict, dataset: KITTIDataset, frame_idx: int,
     )
     ground_truth = [
         box
-        for box in extract_gt_instances(
+        for box in extract_reference_instances(
             points, instance_labels, semantic_labels, labels_helper
         )
         if _ids_match_target(box.semantic_id, target_ids)

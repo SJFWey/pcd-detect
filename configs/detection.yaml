@@ -62,3 +62,11 @@ boxes:
   z_percentile: 5.0  # percentile for robust z boundary estimation
   min_box_volume: 0.1   # cubic meters
   max_box_volume: 1000  # cubic meters
+
+# ============================================================================
+# Runtime Reporting
+# ============================================================================
+performance:
+  # Timing is collected in the detection process, so reports are saved here
+  # rather than by the separate eval command.
+  save_report: true

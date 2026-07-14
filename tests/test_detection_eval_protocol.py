@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -6,7 +7,11 @@ import pytest
 from src.commands import eval_cmd
 from src.commands.eval_cmd import _resolve_roi_bounds
 from src.eval import detection_eval
-from src.eval.detection_eval import BoundingBox3D, InstanceMatcher
+from src.eval.detection_eval import (
+    BoundingBox3D,
+    DetectionEvaluator,
+    InstanceMatcher,
+)
 
 
 def _box(semantic_id: int = 10) -> BoundingBox3D:
@@ -102,7 +107,7 @@ def test_eval_command_fits_gt_from_the_same_roi_support_as_predictions(
 
     monkeypatch.setattr(eval_cmd, "load_config", lambda config, task: cfg)
     monkeypatch.setattr(eval_cmd, "KITTIDataset", lambda root, sequence: dataset)
-    monkeypatch.setattr(eval_cmd, "extract_gt_instances", capture_gt)
+    monkeypatch.setattr(eval_cmd, "extract_reference_instances", capture_gt)
     monkeypatch.setattr(eval_cmd, "_generate_evaluation_curves", lambda *args: None)
 
     eval_cmd.eval_command()
@@ -140,3 +145,34 @@ def test_resolve_roi_bounds_uses_pipeline_defaults_for_partial_config() -> None:
     assert bounds.x_min == 0.0
     assert bounds.x_max == 25.0
     assert (bounds.y_min, bounds.y_max, bounds.z_min, bounds.z_max) == (-40.0, 40.0, -3.0, 3.0)
+
+
+def test_distance_metrics_include_human_readable_overflow_bin() -> None:
+    evaluator = DetectionEvaluator(distance_bins=[0, 10, 20])
+    far_prediction = BoundingBox3D(
+        center=np.array([25.0, 0.0, 0.0], dtype=np.float64),
+        dimensions=np.ones(3, dtype=np.float64),
+        yaw=0.0,
+        semantic_id=10,
+    )
+
+    evaluator.add_frame([far_prediction], [], frame_id=0)
+    distance_metrics = evaluator.compute_distance_metrics()
+
+    assert list(distance_metrics) == ["0-10m", "10-20m", "20m+"]
+    assert distance_metrics["20m+"].false_positives == 1
+
+
+def test_saved_metrics_use_strict_json_for_infinite_distance_edge(tmp_path) -> None:
+    output_path = tmp_path / "metrics.json"
+    evaluator = DetectionEvaluator(distance_bins=[0, 10])
+
+    evaluator.save_results(output_path)
+    raw = output_path.read_text(encoding="utf-8")
+    saved = json.loads(raw)
+
+    assert "Infinity" not in raw
+    assert saved["config"]["distance_bins"] == [0.0, 10.0, "inf"]
+    assert saved["config"]["reference_box_protocol"]["benchmark_status"].startswith(
+        "custom proxy"
+    )

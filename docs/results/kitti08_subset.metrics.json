@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "result_type": "semantic_kitti_instance_box_proxy",
+  "benchmark_status": "development subset; not KITTI 3D detection AP",
+  "dataset": {
+    "name": "KITTI Odometry / SemanticKITTI",
+    "sequence": "08",
+    "frames": {
+      "start": 0,
+      "end_exclusive": 500,
+      "step": 1
+    }
+  },
+  "protocol": {
+    "targets": ["car", "person"],
+    "reference_box_source": "PCA OBB fitted to visible SemanticKITTI instance points inside the configured ROI",
+    "minimum_reference_points": 10,
+    "matching": "class-aware BEV IoU >= 0.5",
+    "prediction_class_source": "box-size heuristic when class metadata is absent",
+    "ground_ransac_seed": 0,
+    "parameter_selection": "max_box_volume was selected on this same subset"
+  },
+  "provenance": {
+    "metrics_source_commit": "d2018e1e35b63cb59744ed99ec381a619fdf3809",
+    "reproduction_config": "examples/kitti08_subset.yaml",
+    "reproduction_config_sha256": "749a7a55991c4ae2a56cd5848610255133f5029289d450f60eaf9af6eb06d66e",
+    "distance_overflow_row_reconstructed_from_totals": true
+  },
+  "overall": {
+    "frames": 500,
+    "predictions": 12812,
+    "reference_boxes": 1937,
+    "true_positives": 541,
+    "false_positives": 12271,
+    "false_negatives": 1396,
+    "precision": 0.0422,
+    "recall": 0.2793,
+    "f1": 0.0734,
+    "mean_matched_iou": 0.7237
+  },
+  "by_distance": {
+    "0-10m": {"predictions": 729, "reference_boxes": 289, "tp": 223, "fp": 506, "fn": 66, "precision": 0.306, "recall": 0.772, "f1": 0.438, "mean_matched_iou": 0.771},
+    "10-20m": {"predictions": 2879, "reference_boxes": 578, "tp": 234, "fp": 2645, "fn": 344, "precision": 0.081, "recall": 0.405, "f1": 0.135, "mean_matched_iou": 0.706},
+    "20-30m": {"predictions": 3538, "reference_boxes": 495, "tp": 58, "fp": 3480, "fn": 437, "precision": 0.016, "recall": 0.117, "f1": 0.029, "mean_matched_iou": 0.619},
+    "30-40m": {"predictions": 3309, "reference_boxes": 325, "tp": 16, "fp": 3293, "fn": 309, "precision": 0.005, "recall": 0.049, "f1": 0.009, "mean_matched_iou": 0.660},
+    "40-50m": {"predictions": 1817, "reference_boxes": 250, "tp": 10, "fp": 1807, "fn": 240, "precision": 0.006, "recall": 0.040, "f1": 0.010, "mean_matched_iou": 0.784},
+    "50m+": {"predictions": 540, "reference_boxes": 0, "tp": 0, "fp": 540, "fn": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0, "mean_matched_iou": null}
+  }
+}

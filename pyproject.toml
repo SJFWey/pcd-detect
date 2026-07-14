@@ -1,7 +1,7 @@
 [project]
 name = "pcd-detect"
 version = "0.1.0"
-description = "3D Point Cloud Detection on KITTI Dataset"
+description = "Classical geometric object proposals for KITTI and SemanticKITTI"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10, <3.13"

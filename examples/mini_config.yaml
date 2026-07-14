@@ -51,6 +51,9 @@ boxes:
   min_box_volume: 0.05
   max_box_volume: 200.0
 
+performance:
+  save_report: true
+
 output:
   root: "outputs/mini"
   boxes_dir: "boxes"

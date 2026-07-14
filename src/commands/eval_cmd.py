@@ -18,13 +18,11 @@ from ..eval.detection_eval import (
     BoundingBox3D,
     DetectionEvaluator,
     canonical_semantic_id,
-    extract_gt_instances,
+    extract_reference_instances,
 )
 from ..io.boxes_to_labels import BoxLabelMapping
-from ..eval.perf_report import generate_performance_report
 from ..io.export_boxes import JSONLBoxReader
 from ..preprocess.roi import ROIBounds, apply_mask, roi_mask
-from ..utils.timer import get_timing_manager
 from .common import load_config, normalize_target_name
 
 
@@ -366,7 +364,6 @@ def eval_command(config: Path | None = None) -> None:
     eval_cfg = cfg.get("evaluation", {})
     official = eval_cfg.get("official", False)
     detection = eval_cfg.get("detection", True)
-    perf = eval_cfg.get("perf", False)
     split = eval_cfg.get("split", "valid")
     iou_threshold = eval_cfg.get("iou_threshold", 0.5)
 
@@ -391,11 +388,10 @@ def eval_command(config: Path | None = None) -> None:
     typer.echo()
 
     # If no specific evaluation is requested, show help
-    if not (official or detection or perf):
+    if not (official or detection):
         typer.echo("No evaluation type enabled in config. Set one or more of:")
         typer.echo("  evaluation.official: true")
         typer.echo("  evaluation.detection: true")
-        typer.echo("  evaluation.perf: true")
         return
 
     # Run official evaluation
@@ -470,7 +466,7 @@ def eval_command(config: Path | None = None) -> None:
     # Run detection evaluation
     if detection:
         typer.echo("-" * 40)
-        typer.echo("Running Detection Metrics Evaluation...")
+        typer.echo("Running Proxy Detection Metrics Evaluation...")
         typer.echo("-" * 40)
 
         try:
@@ -542,7 +538,7 @@ def eval_command(config: Path | None = None) -> None:
                 skipped_label_frame_count = 0
 
                 for i, frame_id in enumerate(frame_range, start=1):
-                    # Load ground truth
+                    # Fit proxy reference boxes from visible labeled points.
                     frame_data = kitti_dataset.get_frame(frame_id)
                     if frame_data.inst_label is None or frame_data.sem_label is None:
                         skipped_label_frame_count += 1
@@ -556,7 +552,7 @@ def eval_command(config: Path | None = None) -> None:
                         frame_data.inst_label,
                         frame_data.sem_label,
                     )
-                    gt_boxes = extract_gt_instances(
+                    gt_boxes = extract_reference_instances(
                         gt_points,
                         gt_instance_labels,
                         gt_semantic_labels,
@@ -617,17 +613,17 @@ def eval_command(config: Path | None = None) -> None:
                     )
                 if skipped_label_frame_count:
                     typer.echo(
-                        f"Skipped {skipped_label_frame_count} frame(s) without ground-truth labels."
+                        f"Skipped {skipped_label_frame_count} frame(s) without point labels."
                     )
 
                 # Compute and display metrics
                 metrics = evaluator.compute_metrics()
                 typer.echo()
-                typer.echo("Detection Metrics:")
+                typer.echo("Proxy Detection Metrics:")
                 typer.echo(f"  Precision: {metrics.precision:.4f}")
                 typer.echo(f"  Recall:    {metrics.recall:.4f}")
                 typer.echo(f"  F1 Score:  {metrics.f1:.4f}")
-                typer.echo(f"  Mean IoU:  {metrics.mean_iou:.4f}")
+                typer.echo(f"  Mean matched IoU: {metrics.mean_iou:.4f}")
                 typer.echo()
 
                 # Distance-stratified metrics
@@ -641,7 +637,7 @@ def eval_command(config: Path | None = None) -> None:
                 # Save results
                 evaluator.save_results(output_dir / "det_metrics.json")
                 typer.echo(
-                    f"\nSaved detection metrics to {output_dir / 'det_metrics.json'}"
+                    f"\nSaved proxy detection metrics to {output_dir / 'det_metrics.json'}"
                 )
 
                 # Generate evaluation curves
@@ -665,34 +661,6 @@ def eval_command(config: Path | None = None) -> None:
             raise typer.Exit(code=1) from exc
 
         typer.echo()
-
-    # Generate performance report
-    if perf:
-        typer.echo("-" * 40)
-        typer.echo("Generating Performance Report...")
-        typer.echo("-" * 40)
-
-        try:
-            manager = get_timing_manager()
-            all_stats = manager.get_all_stats()
-            if not all_stats:
-                typer.echo(
-                    "Skipped performance report: timing is only available within a run process."
-                )
-            else:
-                report = generate_performance_report(manager)
-                report.print_summary()
-                report.save(output_dir / "perf.json")
-                report.save_markdown(output_dir / "perf.md")
-                typer.echo(
-                    f"\nSaved performance report to {output_dir}/perf.json and perf.md"
-                )
-
-        except typer.Exit:
-            raise
-        except Exception as exc:
-            typer.echo(f"Error generating performance report: {exc}")
-            raise typer.Exit(code=1) from exc
 
     typer.echo()
     typer.echo("=" * 60)

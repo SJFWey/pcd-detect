@@ -95,7 +95,7 @@ def draw_detection_overlay(
     predictions : list[OBBParams]
         Predicted boxes.
     ground_truth : list[OBBParams]
-        Ground-truth boxes.
+        Instance-derived proxy reference boxes.
     matched_pred_indices : set[int]
         Indices into *predictions* that are true positives.
     matched_gt_indices : set[int]

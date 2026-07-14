@@ -1,7 +1,7 @@
-"""Detection evaluation metrics using SemanticKITTI instance IDs.
+"""Proxy detection metrics using SemanticKITTI point-level instance labels.
 
 This module provides evaluation tools for 3D object detection:
-- Ground truth instance extraction from SemanticKITTI labels
+- Reference-box extraction from visible SemanticKITTI instance points
 - IoU computation (BEV and 3D)
 - Hungarian matching between predictions and ground truth
 - Precision, Recall, F1 metrics
@@ -11,8 +11,10 @@ Usage:
     evaluator = DetectionEvaluator(iou_threshold=0.5)
 
     for frame in frames:
-        gt_boxes = extract_gt_instances(frame.points, frame.inst_label, frame.sem_label)
-        evaluator.add_frame(pred_boxes, gt_boxes, frame_id)
+        reference_boxes = extract_reference_instances(
+            frame.points, frame.inst_label, frame.sem_label
+        )
+        evaluator.add_frame(pred_boxes, reference_boxes, frame_id)
 
     metrics = evaluator.compute_metrics()
     print(f"Precision: {metrics.precision:.3f}")
@@ -38,6 +40,7 @@ logger = get_logger(__name__)
 
 # Distance bins for stratified evaluation (in meters)
 DEFAULT_DISTANCE_BINS = [0, 10, 20, 30, 40, 50, float("inf")]
+DEFAULT_REFERENCE_MIN_POINTS = 10
 
 # Canonical thing-class groups for matching static and moving SemanticKITTI ids.
 CANONICAL_SEMANTIC_IDS = {
@@ -129,6 +132,31 @@ def semantic_ids_match(pred_id: int, gt_id: int) -> bool:
     pred_canonical = canonical_semantic_id(pred_id)
     gt_canonical = canonical_semantic_id(gt_id)
     return pred_canonical != 0 and pred_canonical == gt_canonical
+
+
+def _normalize_distance_bins(distance_bins: Sequence[float]) -> list[float]:
+    """Validate distance-bin edges and add an overflow bin when needed."""
+    bins = [float(value) for value in distance_bins]
+    if len(bins) < 2:
+        raise ValueError("distance_bins must contain at least two edges")
+    if any(np.isnan(value) for value in bins):
+        raise ValueError("distance_bins must not contain NaN")
+    if not np.isfinite(bins[0]) or bins[0] < 0:
+        raise ValueError("distance_bins must start with a finite non-negative edge")
+    if any(right <= left for left, right in zip(bins, bins[1:])):
+        raise ValueError("distance_bins must be strictly increasing")
+    if any(np.isinf(value) for value in bins[:-1]):
+        raise ValueError("Only the final distance-bin edge may be infinite")
+    if not np.isinf(bins[-1]):
+        bins.append(float("inf"))
+    return bins
+
+
+def _format_distance_bin(lower: float, upper: float) -> str:
+    """Format a distance interval for reports."""
+    if np.isinf(upper):
+        return f"{lower:.0f}m+"
+    return f"{lower:.0f}-{upper:.0f}m"
 
 
 def _rectangle_corners_xy(box: BoundingBox3D) -> NDArray[np.float64]:
@@ -514,7 +542,10 @@ class DetectionEvaluator:
         """
         self.iou_threshold = iou_threshold
         self.use_3d_iou = use_3d_iou
-        self.distance_bins = distance_bins or DEFAULT_DISTANCE_BINS
+        raw_distance_bins = (
+            DEFAULT_DISTANCE_BINS if distance_bins is None else distance_bins
+        )
+        self.distance_bins = _normalize_distance_bins(raw_distance_bins)
         self.match_classes = match_classes
 
         self.matcher = InstanceMatcher(iou_threshold, use_3d_iou, match_classes)
@@ -534,7 +565,9 @@ class DetectionEvaluator:
     def _init_distance_bins(self) -> None:
         """Initialize distance bin accumulators."""
         for i in range(len(self.distance_bins) - 1):
-            bin_name = f"{self.distance_bins[i]:.0f}-{self.distance_bins[i + 1]:.0f}m"
+            bin_name = _format_distance_bin(
+                self.distance_bins[i], self.distance_bins[i + 1]
+            )
             self._distance_tp[bin_name] = 0
             self._distance_fp[bin_name] = 0
             self._distance_fn[bin_name] = 0
@@ -544,13 +577,19 @@ class DetectionEvaluator:
         """Get distance bin name for a given distance."""
         for i in range(len(self.distance_bins) - 1):
             if self.distance_bins[i] <= distance < self.distance_bins[i + 1]:
-                return f"{self.distance_bins[i]:.0f}-{self.distance_bins[i + 1]:.0f}m"
+                return _format_distance_bin(
+                    self.distance_bins[i], self.distance_bins[i + 1]
+                )
         return None
 
     def reset(self) -> None:
         """Reset all accumulated results."""
         self._frame_results.clear()
         self._all_ious.clear()
+        self._distance_tp.clear()
+        self._distance_fp.clear()
+        self._distance_fn.clear()
+        self._distance_ious.clear()
         self._init_distance_bins()
 
     def add_frame(
@@ -727,25 +766,34 @@ class DetectionEvaluator:
                 "iou_threshold": self.iou_threshold,
                 "use_3d_iou": self.use_3d_iou,
                 "match_classes": self.match_classes,
-                "distance_bins": self.distance_bins,
+                "distance_bins": [
+                    "inf" if np.isinf(edge) else edge for edge in self.distance_bins
+                ],
+                "reference_box_protocol": {
+                    "source": "SemanticKITTI point-level instance labels",
+                    "support": "visible LiDAR points passed to extract_reference_instances",
+                    "fitting": "PCA oriented bounding box",
+                    "minimum_instance_points": DEFAULT_REFERENCE_MIN_POINTS,
+                    "benchmark_status": "custom proxy; not KITTI 3D detection AP",
+                },
             },
             "num_frames": len(self._frame_results),
         }
 
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, allow_nan=False)
 
-        logger.info(f"Saved detection metrics to {output_path}")
+        logger.info(f"Saved proxy detection metrics to {output_path}")
 
 
-def extract_gt_instances(
+def extract_reference_instances(
     points: NDArray[np.float32],
     instance_labels: NDArray[np.uint32],
     semantic_labels: NDArray[np.uint32],
     labels_helper: SemanticKITTILabels | None = None,
-    min_points: int = 10,
+    min_points: int = DEFAULT_REFERENCE_MIN_POINTS,
 ) -> list[BoundingBox3D]:
-    """Extract ground truth instance bounding boxes from SemanticKITTI labels.
+    """Fit proxy reference boxes to visible SemanticKITTI instance points.
 
     Args:
         points: (N, 3+) Point cloud array.
@@ -755,12 +803,13 @@ def extract_gt_instances(
         min_points: Minimum points per instance.
 
     Returns:
-        List of BoundingBox3D for each valid instance.
+        List of fitted reference boxes for valid visible instances. These are
+        not official KITTI 3D detection annotations.
     """
     if labels_helper is None:
         labels_helper = SemanticKITTILabels()
 
-    gt_boxes = []
+    reference_boxes = []
 
     # Get unique non-zero instance IDs
     unique_instances = np.unique(instance_labels)
@@ -786,12 +835,17 @@ def extract_gt_instances(
         if obb_params is None:
             continue
 
-        gt_box = BoundingBox3D.from_obb_params(
+        reference_box = BoundingBox3D.from_obb_params(
             obb_params,
             instance_id=int(inst_id),
             semantic_id=semantic_id,
             num_points=len(inst_points),
         )
-        gt_boxes.append(gt_box)
+        reference_boxes.append(reference_box)
 
-    return gt_boxes
+    return reference_boxes
+
+
+# Backward-compatible alias for callers that used the original name. New code
+# should use extract_reference_instances to avoid implying official KITTI boxes.
+extract_gt_instances = extract_reference_instances

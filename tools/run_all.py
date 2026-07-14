@@ -1,10 +1,11 @@
-"""Run all pipeline steps: detection, evaluation, and video export.
+"""Run the configured detection, evaluation, and export workflow.
 
-This script provides a one-command way to reproduce all results.
+Steps fail fast so evaluation never consumes stale outputs after a failed run.
+The optional ablation uses its own explicitly supplied configuration.
 
 Usage:
     uv run python tools/run_all.py
-    uv run python tools/run_all.py --config configs/config.local.yaml
+    uv run python tools/run_all.py --config examples/kitti08_subset.yaml
 """
 
 import argparse
@@ -21,13 +22,13 @@ from src.utils.config import load_config
 
 def run_command(cmd: list[str], description: str) -> bool:
     """Run a command and return success status."""
-    print(f"\n{'=' * 60}")
+    print(f"\n{'=' * 60}", flush=True)
     print(f"Step: {description}")
     print(f"{'=' * 60}")
     print(f"Command: {' '.join(cmd)}")
-    print()
+    print(flush=True)
 
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, cwd=REPO_ROOT)
     success = result.returncode == 0
 
     if success:
@@ -59,22 +60,33 @@ def main() -> int:
         help="Skip evaluation",
     )
     parser.add_argument(
+        "--skip-export",
         "--skip-video",
+        dest="skip_export",
         action="store_true",
-        help="Skip video export",
+        help="Skip the configured export step",
     )
     parser.add_argument(
-        "--skip-ablation",
-        action="store_true",
-        help="Skip ablation study",
+        "--ablation-config",
+        type=Path,
+        default=None,
+        help="Run ablation with this explicit config after the main workflow",
     )
 
     args = parser.parse_args()
 
-    cfg = load_config(config_path=args.config, task="tools")
+    config_path = args.config.resolve() if args.config is not None else None
+    ablation_config = (
+        args.ablation_config.resolve() if args.ablation_config is not None else None
+    )
+    cfg = load_config(config_path=config_path, task="tools")
     dataset_root = Path(cfg["dataset"]["root"])
+    if not dataset_root.is_absolute():
+        dataset_root = REPO_ROOT / dataset_root
     sequence = str(cfg["dataset"]["sequence"])
     output_root = Path(cfg["output"]["root"])
+    if not output_root.is_absolute():
+        output_root = REPO_ROOT / output_root
 
     if not dataset_root.exists():
         print(f"\nError: Dataset root not found at '{dataset_root}'")
@@ -91,14 +103,12 @@ def main() -> int:
     print("=" * 60)
     print(f"Dataset: {dataset_root}")
     print(f"Sequence: {sequence}")
-    print(f"Config: {args.config or '(configs/*.yaml)'}")
+    print(f"Config: {config_path or '(configs/*.yaml)'}")
 
     python = sys.executable
-    steps_passed = 0
-    steps_total = 0
+    steps_completed = 0
 
     # Step 1: Check dataset
-    steps_total += 1
     success = run_command(
         [
             python,
@@ -110,81 +120,85 @@ def main() -> int:
         ],
         "Dataset Validation",
     )
-    if success:
-        steps_passed += 1
-    else:
-        print("\n⚠ Dataset validation failed. Continuing anyway...")
+    if not success:
+        print("\nDataset validation failed; stopping before detection.")
+        return 1
+    steps_completed += 1
 
     # Step 2: Run detection pipeline
     if not args.skip_detection:
-        steps_total += 1
         cmd = [python, "-m", "src.main", "run"]
-        if args.config is not None:
-            cmd.extend(["--config", str(args.config)])
+        if config_path is not None:
+            cmd.extend(["--config", str(config_path)])
         success = run_command(cmd, "Detection Pipeline")
-        if success:
-            steps_passed += 1
+        if not success:
+            print("\nDetection failed; stopping before evaluation.")
+            return 1
+        steps_completed += 1
     else:
-        print("\n--- Skipping detection pipeline ---")
+        print(
+            "\n--- Skipping detection; evaluation will use explicitly "
+            "pre-existing boxes ---"
+        )
 
     # Step 3: Run evaluation
     if not args.skip_eval:
-        steps_total += 1
         cmd = [python, "-m", "src.main", "eval"]
-        if args.config is not None:
-            cmd.extend(["--config", str(args.config)])
+        if config_path is not None:
+            cmd.extend(["--config", str(config_path)])
         success = run_command(cmd, "Evaluation")
-        if success:
-            steps_passed += 1
+        if not success:
+            print("\nEvaluation failed; stopping before export.")
+            return 1
+        steps_completed += 1
     else:
         print("\n--- Skipping evaluation ---")
 
     # Step 4: Export videos
-    if not args.skip_video:
-        steps_total += 1
+    if not args.skip_export:
         cmd = [python, "-m", "src.main", "export"]
-        if args.config is not None:
-            cmd.extend(["--config", str(args.config)])
-        success = run_command(cmd, "Video Export")
-        if success:
-            steps_passed += 1
+        if config_path is not None:
+            cmd.extend(["--config", str(config_path)])
+        success = run_command(cmd, "Configured Export")
+        if not success:
+            print("\nExport failed; stopping.")
+            return 1
+        steps_completed += 1
     else:
-        print("\n--- Skipping video export ---")
+        print("\n--- Skipping configured export ---")
 
-    # Step 5: Run ablation study
-    if not args.skip_ablation:
-        steps_total += 1
+    # Step 5: Run an explicitly configured ablation study.
+    if ablation_config is not None:
         success = run_command(
             [
                 python,
                 "tools/run_ablation.py",
                 "--config",
-                "configs/ablation/proposal_cmp.yaml",
+                str(ablation_config),
             ],
             "Ablation Study",
         )
-        if success:
-            steps_passed += 1
-    else:
-        print("\n--- Skipping ablation study ---")
-
+        if not success:
+            print("\nAblation failed.")
+            return 1
+        steps_completed += 1
     # Summary
     print("\n" + "=" * 60)
     print("Pipeline Complete!")
     print("=" * 60)
-    print(f"Steps passed: {steps_passed}/{steps_total}")
+    print(f"Steps completed: {steps_completed}")
     print()
     print("Generated outputs:")
-    print(f"  - {output_root / cfg['output']['predictions_dir']}/     Predictions")
-    print(f"  - {output_root / cfg['output']['reports_dir']}/         Reports")
-    print(f"  - {output_root / cfg['output']['videos_dir']}/          Videos")
-    print()
-    print("Quick visual check:")
-    print("  python third_party/semkitti_api/visualize.py \\")
-    print(f"      --sequence {sequence} --dataset {dataset_root} \\")
-    print(f"      --predictions {output_root / cfg['output']['predictions_dir']}")
+    if not args.skip_detection:
+        boxes_dir = cfg["output"].get("boxes_dir", "boxes")
+        print(f"  - {output_root / boxes_dir / sequence}/     Detection boxes")
+    if not args.skip_eval:
+        reports_dir = cfg["output"].get("reports_dir", "reports")
+        print(f"  - {output_root / reports_dir}/     Evaluation reports")
+    if not args.skip_export:
+        print("  - See the configured export path for generated export artifacts")
 
-    return 0 if steps_passed == steps_total else 1
+    return 0
 
 
 if __name__ == "__main__":

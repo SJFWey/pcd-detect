@@ -1,12 +1,12 @@
 # pcd-detect
 
-Classical 3D point cloud detection baseline for KITTI Odometry /
+Classical geometric object-proposal baseline for KITTI Odometry /
 SemanticKITTI-style LiDAR scans.
 
 This project does not train a neural model. It implements a transparent point
 cloud processing pipeline: ROI crop, voxel downsampling, RANSAC ground removal,
 DBSCAN or BEV connected-component proposals, PCA-based oriented boxes, static
-visualization, video export, and detection-oriented evaluation.
+visualization, video export, and a clearly scoped proxy evaluation.
 
 ## Why This Project Exists
 
@@ -23,7 +23,7 @@ runtime tradeoffs, and failure modes of non-learning methods.
 - RANSAC ground segmentation
 - DBSCAN and BEV connected-component proposal generators
 - PCA-based oriented bounding boxes
-- JSONL box export, PNG rendering, video export, and evaluation helpers
+- JSONL box export, PNG rendering, video export, and proxy-evaluation helpers
 - Tiny committed SemanticKITTI-style fixture for CI and smoke tests
 
 ## Quick Start
@@ -60,15 +60,18 @@ Expected generated output:
 outputs/mini/
   boxes/00/boxes.jsonl
   reports/det_metrics.json
+  reports/perf.json
+  reports/perf.md
 ```
 
 ![Mini point cloud detection](docs/assets/pcd-detect-mini.png)
 
-## KITTI Subset Result
+## SemanticKITTI Development Subset
 
-The repository includes a reproducible configuration for a real validation
-subset: SemanticKITTI sequence 08, frames 0-499. The commands below assume that
-`data` points to a KITTI/SemanticKITTI dataset root containing `sequences/`.
+The repository includes a reproducible development run on SemanticKITTI
+sequence 08, frames 0-499. This is not a held-out benchmark: one box-volume
+filter was selected on the same subset. The commands below assume that `data`
+points to a KITTI/SemanticKITTI dataset root containing `sequences/`.
 
 ```bash
 ln -s /path/to/kitti/dataset data
@@ -100,13 +103,19 @@ uv run python tools/render_bev.py \
   --output docs/assets/kitti08-frame-000450-pipeline.png
 ```
 
-Subset metrics, generated from `outputs/kitti08_subset/reports/det_metrics.json`:
+The reference boxes are not KITTI detection annotations. They are PCA-oriented
+boxes fitted to visible SemanticKITTI instance points inside the configured ROI;
+instances with fewer than 10 visible points are excluded. Consequently these are
+custom proxy metrics and are not comparable with KITTI 3D detection AP.
 
-| Sequence / frames | Targets | IoU | Precision | Recall | F1 | Mean IoU |
+Development-subset metrics, generated from
+`outputs/kitti08_subset/reports/det_metrics.json`:
+
+| Sequence / frames | Targets | Matching | Precision | Recall | F1 | Mean matched IoU |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
 | 08 / 0-499 | car, person | BEV >= 0.5 | 0.0422 | 0.2793 | 0.0734 | 0.7237 |
 
-Distance-stratified recall:
+Distance-stratified proxy metrics:
 
 | Range | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: |
@@ -115,19 +124,22 @@ Distance-stratified recall:
 | 20-30m | 0.016 | 0.117 | 0.029 |
 | 30-40m | 0.005 | 0.049 | 0.009 |
 | 40-50m | 0.006 | 0.040 | 0.010 |
+| 50m+ | 0.000 | 0.000 | 0.000 |
 
-These numbers should be read as proposal-baseline results, not as detector
-model accuracy. The pipeline creates many geometric proposals and uses simple
-box-size heuristics for semantic class assignment, so false positives are high.
-When a proposal does match a ground-truth object, box geometry is often
-reasonable, which is reflected in the matched-box mean IoU.
+These numbers describe a proposal baseline, not model accuracy. The pipeline
+creates many geometric proposals and uses simple box-size heuristics for class
+assignment, so false positives are high. Mean matched IoU is conditional on the
+541 proposals that already pass the class and IoU >= 0.5 matching rule; it must
+be read together with the low recall and is not evidence of overall detector
+quality.
 
 The qualitative configuration uses the exact same processing parameters as the
 subset run. Its `visualization.display_roi` only crops the rendered view for
 readability. Panel 3 is label-backed: it evaluates only boxes centred in that
 visible ROI, so its counts match the boxes on screen. Predictions are matched to
-real SemanticKITTI instances with the same class-aware BEV-IoU rule as evaluation;
-green, red, and dashed orange boxes are TP, FP, and FN respectively.
+PCA-fitted reference boxes from real SemanticKITTI instances with the same
+class-aware BEV-IoU rule as evaluation; green, red, and dashed orange boxes are
+TP, FP, and FN respectively.
 
 ![KITTI BEV pipeline frame 30](docs/assets/kitti08-frame-000030-pipeline.png)
 
@@ -135,20 +147,22 @@ green, red, and dashed orange boxes are TP, FP, and FN respectively.
 
 ![KITTI BEV pipeline frame 450](docs/assets/kitti08-frame-000450-pipeline.png)
 
-More details: [docs/results/kitti08_subset.md](docs/results/kitti08_subset.md).
+More details and provenance:
+[docs/results/kitti08_subset.md](docs/results/kitti08_subset.md) and
+[docs/results/kitti08_subset.metrics.json](docs/results/kitti08_subset.metrics.json).
 
 ## Configuration
 
 Default modular configs live in `configs/`:
 
 - `base.yaml`: dataset, output, logging
-- `detection.yaml`: ROI, voxel, ground, proposals, filtering, boxes
+- `detection.yaml`: ROI, voxel, ground, proposals, filtering, boxes, timing report
 - `visualization.yaml`: view mode, frame, camera
-- `evaluation.yaml`: detection and optional SemanticKITTI metrics
+- `evaluation.yaml`: proxy detection and optional official SemanticKITTI metrics
 - `export.yaml`: video and prediction export
 
 Passing `--config path/to/file.yaml` loads a single YAML file. The mini fixture
-uses `examples/mini_config.yaml`; the real subset uses
+uses `examples/mini_config.yaml`; the development subset uses
 `examples/kitti08_subset.yaml`.
 
 Machine-specific overrides for the modular default configs can be placed in
@@ -211,6 +225,8 @@ mini visualization render.
 - Sparse distant objects often do not have enough points for stable boxes.
 - High proposal recall comes with many false positives unless additional
   classification or tracking is added.
+- Proxy reference boxes are fitted from visible labeled points and exclude
+  instances with fewer than 10 points; they are not official KITTI boxes.
 
 ## License
 

@@ -68,10 +68,12 @@ def test_mini_detection_eval_writes_parseable_metrics_from_project_owned_mapping
 
     eval_result = run_eval(MINI_CONFIG)
     report_path = output_root / "reports/det_metrics.json"
+    perf_path = output_root / "reports/perf.json"
 
     assert eval_result.returncode == 0, eval_result.stderr
     assert "Evaluation complete!" in eval_result.stdout
     assert json.loads(report_path.read_text(encoding="utf-8"))
+    assert json.loads(perf_path.read_text(encoding="utf-8"))
 
 
 def test_detection_eval_missing_label_mapping_exits_nonzero_without_completion_banner(
